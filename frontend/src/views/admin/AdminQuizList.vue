@@ -1,51 +1,51 @@
 <template>
   <div class="p-6">
     <div class="flex justify-between items-center mb-4">
-      <h1 class="text-2xl font-semibold">Manage Quizzes</h1>
+      <h1 class="text-2xl font-semibold text-gray-100">Manage Quizzes</h1>
       <button
         @click="goToCreateQuiz"
-        class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+        class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-teal-500"
       >
         Create New Quiz
       </button>
     </div>
 
-    <!-- Quiz List Table (placeholder) -->
-    <div class="bg-white shadow-md rounded my-6">
+    <!-- Quiz List Table -->
+    <div class="bg-slate-800 border border-slate-700 rounded my-6">
       <table class="min-w-full table-auto">
         <thead>
-          <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+          <tr class="bg-slate-700 text-gray-300 uppercase text-sm leading-normal">
             <th class="py-3 px-6 text-left">Title</th>
             <th class="py-3 px-6 text-left">Status</th>
             <th class="py-3 px-6 text-center">Actions</th>
           </tr>
         </thead>
-        <tbody class="text-gray-600 text-sm font-light">
+        <tbody class="text-gray-200 text-sm font-light">
           <!-- Loading State -->
           <tr v-if="isLoading">
-            <td colspan="3" class="py-3 px-6 text-center">Loading quizzes...</td>
+            <td colspan="3" class="py-3 px-6 text-center text-gray-400">Loading quizzes...</td>
           </tr>
           <!-- Error State -->
           <tr v-else-if="error">
-             <td colspan="3" class="py-3 px-6 text-center text-red-600">Error loading quizzes: {{ error }}</td>
+             <td colspan="3" class="py-3 px-6 text-center text-red-400">Error loading quizzes: {{ error }}</td>
           </tr>
           <!-- Empty State -->
           <tr v-else-if="quizzes.length === 0">
-             <td colspan="3" class="py-3 px-6 text-center">No quizzes found. Create one!</td>
+             <td colspan="3" class="py-3 px-6 text-center text-gray-400">No quizzes found. Create one!</td>
           </tr>
-          <!-- Quiz rows will be populated here -->
-          <tr v-else v-for="quiz in quizzes" :key="quiz.id" class="border-b border-gray-200 hover:bg-gray-100">
+          <!-- Quiz rows -->
+          <tr v-else v-for="quiz in quizzes" :key="quiz.id" class="border-b border-slate-700 hover:bg-slate-700">
             <td class="py-3 px-6 text-left whitespace-nowrap">
               <span>{{ quiz.title }}</span>
             </td>
             <td class="py-3 px-6 text-left">
-              <span>{{ quiz.status || 'Draft' }}</span> <!-- Placeholder status -->
+              <span class="capitalize">{{ quiz.status || 'draft' }}</span> <!-- Ensure consistent casing -->
             </td>
             <td class="py-3 px-6 text-center">
-               <!-- Action Buttons Placeholder -->
-               <button class="bg-blue-500 hover:bg-blue-700 text-white text-xs py-1 px-2 rounded mr-1">View</button>
-               <button class="bg-yellow-500 hover:bg-yellow-700 text-white text-xs py-1 px-2 rounded mr-1">Edit</button>
-               <button class="bg-red-500 hover:bg-red-700 text-white text-xs py-1 px-2 rounded">Delete</button>
+               <!-- Action Buttons -->
+               <button class="bg-teal-600 hover:bg-teal-700 text-white text-xs py-1 px-2 rounded mr-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-teal-500">View</button>
+               <button class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 text-xs py-1 px-2 rounded mr-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-yellow-400">Edit</button> <!-- Yellow ring for yellow button -->
+               <button class="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-red-500">Delete</button> <!-- Red ring for red button -->
             </td>
           </tr>
         </tbody>
@@ -117,5 +117,6 @@ watch(
 </script>
 
 <style scoped>
+/* Removed scoped override for button focus - handled by global reset */
 /* Component styles */
 </style>

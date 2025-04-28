@@ -10,9 +10,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: dark; /* Enforce dark mode */
+  color: #e0e0e0; /* Default light text */
+  background-color: #1a1a1a; /* Default dark background */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -22,43 +22,19 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: #2dd4bf; /* Teal accent for links */
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: #5eead4; /* Lighter teal on hover */
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  /* Removed flex layout styles */
   min-width: 320px;
   min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-.card {
-  padding: 2em;
-}
-
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-}
+/* --- Global Resets/Overrides --- */
+/* Removed custom button outline rule - will use @unocss/reset instead */

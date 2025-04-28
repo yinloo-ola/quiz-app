@@ -1,15 +1,14 @@
 <template>
-  <div class="flex h-screen bg-gray-100">
+  <div class="flex h-screen"> 
     <!-- Sidebar -->
-    <aside class="w-64 bg-gray-800 text-white p-4">
+    <aside class="w-64 bg-slate-900 text-white p-4 flex flex-col"> 
       <h2 class="text-xl font-bold mb-6">Quiz Admin</h2>
-      <nav>
-        <ul>
+      <nav class="flex-grow"> 
+        <ul class="list-none pl-0">
           <li class="mb-2">
             <router-link 
               :to="{ name: 'admin-dashboard' }" 
-              class="block px-4 py-2 rounded hover:bg-gray-700"
-              active-class="bg-gray-900"
+              :class="getLinkClass('admin-dashboard')"
             >
               Dashboard
             </router-link>
@@ -18,26 +17,26 @@
           <li class="mb-2">
              <router-link 
               :to="{ name: 'admin-quiz-list' }" 
-              class="block px-4 py-2 rounded hover:bg-gray-700"
-              active-class="bg-gray-900"
+              :class="getLinkClass('admin-quiz-list')"
             >
               Quizzes
             </router-link>
           </li>
         </ul>
       </nav>
+      <!-- Logout Button -->
       <div class="mt-auto">
-        <!-- Logout Button Placeholder -->
         <button 
-          @click="handleLogout" 
-          class="w-full mt-6 px-4 py-2 rounded bg-red-600 hover:bg-red-700">
+          @click="handleLogout"
+          class="logout-button w-full mt-6 px-4 py-2 rounded border border-transparent bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-red-500"
+        >
           Logout
         </button>
       </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 p-6 overflow-auto">
+    <main class="flex-1 p-6 overflow-auto"> 
       <router-view /> <!-- Nested routes will render here -->
     </main>
   </div>
@@ -45,10 +44,19 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'; // Import store
-import { useRouter } from 'vue-router'; // Import router
+import { useRouter, useRoute } from 'vue-router'; // Import router
 
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute(); // Get the current route object
+
+// Function to determine link classes based on exact route name match
+const getLinkClass = (targetRouteName: string) => {
+  return {
+    'bg-teal-600': route.name === targetRouteName, // Apply highlight only if names match exactly
+    'block px-4 py-2 rounded hover:bg-slate-700': true // Always apply base classes
+  };
+};
 
 const handleLogout = () => {
   authStore.logout();
@@ -57,5 +65,5 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
-/* Add specific styles for the layout if needed */
+/* Removed scoped override for logout button focus - handled by global reset */
 </style>

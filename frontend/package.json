@@ -20,6 +20,7 @@
     "@unocss/preset-attributify": "^66.1.0-beta.12",
     "@unocss/preset-icons": "^66.1.0-beta.12",
     "@unocss/preset-uno": "^66.1.0-beta.12",
+    "@unocss/reset": "^66.1.0-beta.12",
     "@vitejs/plugin-vue": "^5.2.2",
     "@vue/tsconfig": "^0.7.0",
     "postcss": "^8.5.3",
