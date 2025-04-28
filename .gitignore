@@ -32,11 +32,9 @@ backend/app
 logs
 
 # Environment variables
-.env*
 !.env.example
 
 # Databases
-*.db
 *.db-journal
 *.sqlite
 *.sqlite3
