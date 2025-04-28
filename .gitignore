@@ -1,0 +1,59 @@
+# Go
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go Module cache
+# **/.cache/
+
+# Backend executable (if named 'quiz-app' or similar)
+backend/quiz-app
+backend/app
+
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Log files
+*.log
+logs
+
+# Environment variables
+.env*
+!.env.example
+
+# Databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Vite / Vue
+dist/
+dist-ssr/
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
