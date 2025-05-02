@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth'; // Use '@/stores' alias
+import type { Quiz, QuizInput } from '@/types'; // Import Quiz types
 
 const apiClient = axios.create({
   baseURL: 'http://localhost:8081', // Your Go backend URL
@@ -61,30 +62,11 @@ export const adminLogin = async (credentials: AdminLoginCredentials): Promise<Ad
   }
 };
 
-// Interface for the basic quiz data needed for creation
-interface CreateQuizPayload {
-  title: string;
-  description?: string;
-  // Add timeLimit if needed later
-}
-
 // Function to create a new admin quiz
-export const createAdminQuiz = async (quizData: CreateQuizPayload) => {
+export const createAdminQuiz = async (quizData: QuizInput) => {
   try {
-    // Construct the full payload including a placeholder question
-    // to satisfy backend validation (binding:"required,min=1,dive")
-    const payload = {
-      ...quizData,
-      questions: [
-        {
-          text: 'Placeholder Question',
-          choices: [{ text: 'Placeholder Choice', is_correct: true }],
-        },
-      ],
-      // timeLimit: quizData.timeLimit // Add if implementing time limit
-    };
-    console.log('Sending create quiz payload:', payload);
-    const response = await apiClient.post('/admin/quizzes', payload);
+    console.log('Sending create quiz payload:', quizData);
+    const response = await apiClient.post('/admin/quizzes', quizData);
     return response.data; // Return the created quiz data from backend
   } catch (error) {
     console.error('Error creating admin quiz:', error);
@@ -93,6 +75,7 @@ export const createAdminQuiz = async (quizData: CreateQuizPayload) => {
       // Extract backend error message if available
       throw new Error(error.response.data.error || 'Failed to create quiz');
     } else {
+      // Handle non-Axios errors or errors without a response
       throw new Error('An unexpected error occurred while creating the quiz.');
     }
   }
@@ -109,6 +92,40 @@ export const fetchAdminQuizzes = async (): Promise<any[]> => {
   }
 };
 
-// Add other API functions here (e.g., getQuizDetails, etc.)
+/**
+ * Fetch a specific quiz by its ID for the admin.
+ * @param quizId The ID of the quiz to fetch.
+ * @returns Promise resolving with the quiz data.
+ */
+export const getAdminQuiz = async (quizId: number): Promise<Quiz> => {
+  try {
+    const response = await apiClient.get<Quiz>(`/admin/quizzes/${quizId}`);
+    console.log(`[API] Fetched quiz ${quizId}:`, response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error(`Failed to fetch admin quiz ${quizId}:`, error);
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Update an existing quiz.
+ * @param quizId The ID of the quiz to update.
+ * @param quizData The updated quiz data.
+ * @returns Promise resolving with the updated quiz data from the backend.
+ */
+export const updateAdminQuiz = async (quizId: number, quizData: QuizInput): Promise<Quiz> => {
+  try {
+    const response = await apiClient.put<Quiz>(`/admin/quizzes/${quizId}`, quizData);
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating admin quiz ${quizId}:`, error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.error || `Failed to update quiz ${quizId}`);
+    } else {
+      throw new Error('An unexpected error occurred while updating the quiz.');
+    }
+  }
+};
 
 export default apiClient; // Export the configured instance if needed elsewhere

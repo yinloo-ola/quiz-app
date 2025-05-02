@@ -99,23 +99,25 @@ This document outlines the tasks required to build the Vue.js frontend and Golan
   - [x] Navigation (Quiz List, Create Quiz etc.)
   - [x] Logout button
   - [x] Router outlet
-- [x] Implement Quiz List View (`QuizList.vue`)
+- [x] Implement Quiz List View (`AdminQuizList.vue`)
   - [x] Fetch and display admin's quizzes
-  - [ ] Links/buttons for Edit, Delete, View Responses, Manage Credentials (placeholders exist)
-- [x] Implement Quiz Create/Edit Form (`QuizForm.vue`)
-  - [x] Form for quiz details (title, description, time limit - basic create done)
-  - [ ] Component for adding/editing questions (text, type [single/multi])
-  * [ ] Component for adding/editing choices (text, is_correct checkbox)
-  * [ ] Dynamic add/remove buttons for questions/choices
-  * [ ] API calls for create/update
-- [ ] Implement Credential Management View (`CredentialManager.vue`)
+  - [x] Links/buttons for Edit, Delete, View Responses, Manage Credentials (placeholders exist)
+- [x] Implement Quiz Create/Edit Form (Component: `QuizForm.vue`, Create View: `AdminQuizCreate.vue`)
+  - [x] Form for quiz details (title, description, time limit)
+  - [x] Component for adding/editing questions (text, type [single/multi])
+  - [x] Component for adding/editing choices (text, is_correct checkbox)
+  - [x] Dynamic add/remove buttons for questions/choices
+  - [x] Implement Quiz Edit View (`AdminQuizEdit.vue`) - Implemented
+  - [x] API calls for create (in `AdminQuizCreate.vue`)
+  - [x] API calls for update (in `AdminQuizEdit.vue`)
+- [ ] Implement Credential Management View (`AdminCredentialManager.vue`) - *Needs creation*
   - [ ] Fetch/display existing credentials for a quiz
   - [ ] Form to generate new credentials (set expiry)
   - [ ] Display newly generated credentials
-- [ ] Implement Response List View (`ResponseList.vue`)
+- [ ] Implement Response List View (`AdminResponseList.vue`) - *Needs creation*
   - [ ] Fetch/display responses for a quiz (responder, score, submitted_at)
   - [ ] Link to view response details
-- [ ] Implement Response Details View (`ResponseDetails.vue`)
+- [ ] Implement Response Details View (`AdminResponseDetails.vue`) - *Needs creation*
   - [ ] Fetch/display specific response details (answers given vs correct answers)
 
 ## Phase 5: Frontend - Responder UI

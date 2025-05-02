@@ -43,9 +43,10 @@
             </td>
             <td class="py-3 px-6 text-center">
                <!-- Action Buttons -->
-               <button class="bg-teal-600 hover:bg-teal-700 text-white text-xs py-1 px-2 rounded mr-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-teal-500">View</button>
-               <button class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 text-xs py-1 px-2 rounded mr-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-yellow-400">Edit</button> <!-- Yellow ring for yellow button -->
-               <button class="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-red-500">Delete</button> <!-- Red ring for red button -->
+               <button @click="goToEditQuiz(quiz.id)" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 text-xs py-1 px-2 rounded mr-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-yellow-400">Edit</button>
+               <button @click="viewResponses(quiz.id)" class="bg-sky-600 hover:bg-sky-700 text-white text-xs py-1 px-2 rounded mr-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-sky-500">Responses</button>
+               <button @click="manageCredentials(quiz.id)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs py-1 px-2 rounded mr-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-indigo-500">Credentials</button>
+               <button @click="deleteQuiz(quiz.id)" class="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-800 focus:ring-red-500">Delete</button>
             </td>
           </tr>
         </tbody>
@@ -63,7 +64,7 @@ const router = useRouter();
 const route = useRoute();
 
 interface Quiz {
-  id: number;
+  id: number; 
   title: string;
   description?: string;
   status: string;
@@ -96,6 +97,29 @@ const loadQuizzes = async () => {
 // Function to navigate to the create quiz page
 const goToCreateQuiz = () => {
   router.push({ name: 'admin-quiz-create' });
+};
+
+// --- Action Handlers ---
+
+const goToEditQuiz = (quizId: number) => {
+  router.push({ name: 'admin-quiz-edit', params: { id: quizId } });
+};
+
+const viewResponses = (quizId: number) => {
+  // TODO: Ensure 'admin-quiz-responses' route exists
+  router.push({ name: 'admin-quiz-responses', params: { id: quizId } });
+};
+
+const manageCredentials = (quizId: number) => {
+  // TODO: Ensure 'admin-quiz-credentials' route exists
+  router.push({ name: 'admin-quiz-credentials', params: { id: quizId } });
+};
+
+const deleteQuiz = async (quizId: number) => {
+  // TODO: Add confirmation dialog
+  // TODO: Call API service function: await deleteAdminQuiz(quizId);
+  console.warn(`Placeholder: Delete quiz ${quizId}. API call and confirmation needed.`);
+  // TODO: Reload quizzes after deletion: loadQuizzes();
 };
 
 // Call loadQuizzes when the component is first mounted

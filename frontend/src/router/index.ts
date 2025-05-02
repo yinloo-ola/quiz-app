@@ -38,7 +38,25 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'quizzes/create', // Matches /admin/quizzes/create
         name: 'admin-quiz-create',
-        component: () => import('../views/admin/AdminQuizCreate.vue') // Lazy load
+        component: () => import('@/views/admin/AdminQuizCreate.vue') // Lazy load
+      },
+      {
+        path: 'quizzes/:id/edit',
+        name: 'admin-quiz-edit',
+        component: () => import('@/views/admin/AdminQuizEdit.vue'), // Lazy load
+        props: true // Pass route params as props
+      },
+      {
+        path: 'quizzes/:id/responses',
+        name: 'admin-quiz-responses',
+        component: () => import('@/views/admin/AdminResponseList.vue'), // Lazy load
+        props: true // Pass route params as props
+      },
+      {
+        path: 'quizzes/:id/credentials',
+        name: 'admin-quiz-credentials',
+        component: () => import('@/views/admin/AdminCredentialManager.vue'), // Lazy load
+        props: true // Pass route params as props
       }
       // Add other admin child routes here
     ],
