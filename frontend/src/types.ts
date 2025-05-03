@@ -23,6 +23,7 @@ export interface Quiz {
   title: string;
   description?: string;
   time_limit_seconds?: number;
+  status?: string; // Added quiz status (e.g., 'draft', 'published')
   questions: Question[];
   created_at?: string; // Optional metadata
   updated_at?: string; // Optional metadata
@@ -78,7 +79,15 @@ export interface ResponderCredential {
   username: string;
   expiresAt?: string | null; // ISO Date string or null
   used: boolean;
-  usedAt?: string | null; // ISO Date string or null
+  usedAt?: string | null; // ISO 8601 string or null
+}
+
+// Interface for the response when generating new credentials
+export interface GenerateCredentialsResponse {
+  username: string;
+  password: string;         // Plaintext password, only available on creation
+  expiresAt?: string | null; // ISO 8601 string or null
+  credential_id: number;    // Changed from uint to number for TS
 }
 
 // Represents a summary of a submitted quiz response for the admin list view

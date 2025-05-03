@@ -18,19 +18,19 @@ import (
 
 // --- Structs ---
 
-// GenerateCredentialsRequest defines the (currently empty) request body for generating credentials.
-// We might add options like specifying expiry duration or number of credentials later.
+// GenerateCredentialsRequest defines the request body for generating credentials.
+// Count is removed as we always generate one.
 type GenerateCredentialsRequest struct {
-	// Count int `json:"count" binding:"required,min=1"` // Example: If we want to generate multiple at once
-	// DurationHours int `json:"duration_hours" binding:"required,min=1"` // Example: Custom duration
+	Username    *string `json:"username"` // Optional username
+	ExpiryHours *int    `json:"expiry_hours"` // Optional expiry duration in hours
 }
 
 // GenerateCredentialsResponse defines the response containing the generated plain-text credentials.
 type GenerateCredentialsResponse struct {
-	Username string    `json:"username"`
-	Password string    `json:"password"`
-	ExpiresAt time.Time `json:"expires_at"`
-	CredentialID uint   `json:"credential_id"`
+	Username     string    `json:"username"`
+	Password     string    `json:"password"`
+	ExpiresAt    *time.Time `json:"expires_at"`
+	CredentialID uint      `json:"credential_id"`
 }
 
 // CredentialView represents the data returned for a single credential in the ViewCredentials list.
@@ -38,9 +38,10 @@ type GenerateCredentialsResponse struct {
 type CredentialView struct {
 	ID        uint       `json:"id"`
 	Username  string     `json:"username"`
-	ExpiresAt *time.Time `json:"expires_at"`
-	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt *time.Time `json:"expiresAt"` // Match frontend type
+	CreatedAt time.Time  `json:"createdAt"` // Match frontend type
 	Used      bool       `json:"used"`
+	UsedAt    *time.Time `json:"usedAt"`    // Add UsedAt, match frontend type
 }
 
 // --- Utility ---
@@ -81,14 +82,14 @@ func GenerateCredentialsHandler(c *gin.Context) {
 		return
 	}
 
-	// 3. Bind Request (currently empty, but good practice)
+	// 3. Bind Request
 	var req GenerateCredentialsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		// Handle potential future binding errors even if empty now
 		if err.Error() != "EOF" { // Ignore EOF for empty body
- 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
- 			return
- 		}
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+			return
+		}
 	}
 
 	// --- Transaction Start ---
@@ -116,13 +117,23 @@ func GenerateCredentialsHandler(c *gin.Context) {
 	}
 
 	// 5. Generate Credentials
-	// Simple generation logic for now
-	username := fmt.Sprintf("quiz%d_user%d", quizID, time.Now().UnixNano()%10000)
-	plaintextPassword := generateRandomString(12) // Plain-text password
-	expiresAt := time.Now().Add(24 * time.Hour) // Default 24-hour expiry
+	username := ""
+	if req.Username != nil && *req.Username != "" {
+		username = *req.Username
+	} else {
+		// Generate random if not provided
+		username = fmt.Sprintf("quiz%d_user%d", quizID, time.Now().UnixNano()%10000)
+	}
+
+	plainTextPassword := generateRandomString(12) // Plain-text password
+	var expiresAt *time.Time                     // Use pointer for optional expiry
+	if req.ExpiryHours != nil && *req.ExpiryHours > 0 {
+		expiry := time.Now().Add(time.Duration(*req.ExpiryHours) * time.Hour)
+		expiresAt = &expiry
+	}
 
 	// Hash the password
-	hashedPassword, err := auth.HashPassword(plaintextPassword)
+	hashedPassword, err := auth.HashPassword(plainTextPassword)
 	if err != nil {
 		tx.Rollback()
 		log.Printf("Error hashing password for quiz %d: %v", quizID, err)
@@ -135,7 +146,7 @@ func GenerateCredentialsHandler(c *gin.Context) {
 		QuizID:       quizID,
 		Username:     username,
 		PasswordHash: hashedPassword, // Store the hash
-		ExpiresAt:    &expiresAt, // Store expiry time
+		ExpiresAt:    expiresAt,    // Store optional expiry time (pointer)
 	}
 	if err := tx.Create(&newCredential).Error; err != nil {
 		tx.Rollback()
@@ -152,9 +163,9 @@ func GenerateCredentialsHandler(c *gin.Context) {
 
 	// 7. Respond with plain-text credentials
 	resp := GenerateCredentialsResponse{
-		Username:    username,
-		Password:    plaintextPassword, // Send plain text back to admin
-		ExpiresAt:   expiresAt,
+		Username:     username,
+		Password:     plainTextPassword, // Send plain text back to admin
+		ExpiresAt:    expiresAt,         // Send back the calculated expiry time (can be nil)
 		CredentialID: newCredential.ID,
 	}
 
@@ -208,36 +219,34 @@ func ViewCredentialsHandler(c *gin.Context) {
 		return
 	}
 
-	// 4. Fetch Active Credentials
+	// 4. Fetch Credentials from DB
 	var credentials []models.ResponderCredential
-	now := time.Now()
-	query := tx.Where("quiz_id = ? AND used = ? AND (expires_at IS NULL OR expires_at > ?)", quizID, false, now).Order("created_at desc").Find(&credentials)
-	if query.Error != nil {
+	if err := tx.Where("quiz_id = ?", quizID).Order("created_at desc").Find(&credentials).Error; err != nil {
 		tx.Rollback()
-		log.Printf("Error fetching credentials for quiz %d: %v", quizID, query.Error)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch credentials"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch credentials: " + err.Error()})
 		return
 	}
 
-	// --- Commit Transaction (Read-only, but good practice to manage tx lifecycle) ---
+	// --- Commit Transaction (Read-only operation, but good practice for consistency) ---
 	if err := tx.Commit().Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction: " + err.Error()})
 		return
 	}
 
-	// 5. Prepare Response View (excluding token)
-	responseView := make([]CredentialView, len(credentials))
+	// 5. Map to Response View Model (omitting password hash)
+	responseCredentials := make([]CredentialView, len(credentials))
 	for i, cred := range credentials {
-		responseView[i] = CredentialView{
+		responseCredentials[i] = CredentialView{
 			ID:        cred.ID,
 			Username:  cred.Username,
-			ExpiresAt: cred.ExpiresAt,
+			ExpiresAt: cred.ExpiresAt, // Already a pointer
 			CreatedAt: cred.CreatedAt,
 			Used:      cred.Used,
+			UsedAt:    cred.UsedAt,    // Add UsedAt
 		}
 	}
 
-	c.JSON(http.StatusOK, responseView)
+	c.JSON(http.StatusOK, responseCredentials)
 }
 
 // RevokeCredentialHandler handles deleting (soft deleting) a specific responder credential.

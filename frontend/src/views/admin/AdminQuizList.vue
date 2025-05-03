@@ -58,18 +58,11 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { fetchAdminQuizzes } from '@/services/api';
+import { fetchAdminQuizzes, deleteAdminQuiz } from '@/services/api';
+import type { Quiz } from '@/types';
 
 const router = useRouter();
 const route = useRoute();
-
-interface Quiz {
-  id: number; 
-  title: string;
-  description?: string;
-  status: string;
-  // Add other relevant quiz properties like CreatedAt, UpdatedAt if needed
-}
 
 const quizzes = ref<Quiz[]>([]);
 const isLoading = ref(false);
@@ -116,10 +109,26 @@ const manageCredentials = (quizId: number) => {
 };
 
 const deleteQuiz = async (quizId: number) => {
-  // TODO: Add confirmation dialog
-  // TODO: Call API service function: await deleteAdminQuiz(quizId);
-  console.warn(`Placeholder: Delete quiz ${quizId}. API call and confirmation needed.`);
-  // TODO: Reload quizzes after deletion: loadQuizzes();
+  // Add confirmation dialog
+  const confirmed = window.confirm('Are you sure you want to delete this quiz? This action cannot be undone.');
+
+  if (confirmed) {
+    try {
+      // Call API service function
+      await deleteAdminQuiz(quizId);
+      // Reload quizzes after deletion
+      await loadQuizzes();
+      // Optional: Show a success notification
+      console.info(`Quiz ${quizId} deleted successfully.`);
+    } catch (err) {
+      // Handle potential errors during deletion
+      console.error('Error deleting quiz:', err);
+      // TODO: Display a user-friendly error message
+      error.value = 'Failed to delete the quiz. Please try again.';
+    }
+  } else {
+    console.log('Quiz deletion cancelled.');
+  }
 };
 
 // Call loadQuizzes when the component is first mounted

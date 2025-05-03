@@ -7,8 +7,8 @@
       <h2 class="text-lg font-medium text-gray-200 mb-3">Generate New Credentials</h2>
       <form @submit.prevent="handleGenerateCredentials" class="flex flex-wrap items-end gap-3">
         <div>
-          <label for="count" class="block text-sm font-medium text-gray-400 mb-1">Number to Generate:</label>
-          <input type="number" id="count" v-model.number="generateForm.count" min="1" max="100" required class="input input-sm" />
+          <label for="username" class="block text-sm font-medium text-gray-400 mb-1">Username (optional):</label>
+          <input type="text" id="username" v-model.trim="generateForm.username" class="input input-sm" placeholder="Leave blank for random"/>
         </div>
         <div>
           <label for="expiry" class="block text-sm font-medium text-gray-400 mb-1">Expiry (hours, optional):</label>
@@ -20,14 +20,14 @@
         </button>
       </form>
       <p v-if="generationError" class="text-red-400 text-sm mt-2">{{ generationError }}</p>
-      <div v-if="newlyGeneratedCredentials.length > 0" class="mt-4 p-3 bg-green-900/50 border border-green-700 rounded">
-        <h3 class="text-md font-semibold text-green-300 mb-2">Generated Credentials:</h3>
-        <ul class="list-disc list-inside text-green-200 text-sm">
-          <li v-for="cred in newlyGeneratedCredentials" :key="cred.id">{{ cred.username }}</li>
-        </ul>
-         <button @click="copyGeneratedUsernames" class="btn btn-xs btn-outline btn-accent mt-2">
-           Copy Usernames
-         </button>
+      <div v-if="newlyGeneratedCredential" class="mt-4 p-3 bg-green-900/50 border border-green-700 rounded">
+        <h3 class="text-md font-semibold text-green-300 mb-2">Generated Credentials (Password shown once):</h3>
+        <div class="text-green-200 text-sm font-mono">
+          <span>User: {{ newlyGeneratedCredential.username }}</span> | <span class="font-bold">Pass: {{ newlyGeneratedCredential.password }}</span>
+        </div>
+        <button @click="copyGeneratedCredentials" class="btn btn-xs btn-outline btn-accent mt-2">
+          Copy Credentials
+        </button>
       </div>
     </div>
 
@@ -40,18 +40,18 @@
       <table class="table table-zebra table-sm w-full">
         <thead>
           <tr>
-            <th>Username</th>
-            <th>Expires At</th>
-            <th>Used</th>
-            <th>Used At</th>
-            <th>Created At</th>
+            <th class="text-left">Username</th>
+            <th class="text-left">Expires At</th>
+            <th class="text-left w-16">Used</th>
+            <th class="text-left">Used At</th>
+            <th class="text-left">Created At</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="cred in credentials" :key="cred.id" class="hover:bg-gray-700/50">
             <td class="font-mono">{{ cred.username }}</td>
             <td>{{ cred.expiresAt ? formatDateTime(cred.expiresAt) : 'Never' }}</td>
-            <td>
+            <td class="text-center">
               <span :class="['badge badge-sm', cred.used ? 'badge-success' : 'badge-warning']">
                 {{ cred.used ? 'Yes' : 'No' }}
               </span>
@@ -70,19 +70,19 @@
 import { ref, onMounted, reactive } from 'vue';
 import { useRoute } from 'vue-router';
 import { getAdminQuizCredentials, generateAdminQuizCredentials } from '@/services/api';
-import type { ResponderCredential } from '@/types';
+import type { ResponderCredential, GenerateCredentialsResponse } from '@/types';
 
 const route = useRoute();
 const quizId = ref<number | null>(null);
 const credentials = ref<ResponderCredential[]>([]);
-const newlyGeneratedCredentials = ref<ResponderCredential[]>([]);
+const newlyGeneratedCredential = ref<GenerateCredentialsResponse | null>(null);
 const isLoading = ref(false);
 const isGenerating = ref(false);
 const fetchError = ref<string | null>(null);
 const generationError = ref<string | null>(null);
 
 const generateForm = reactive({
-  count: 1,
+  username: '',
   expiryHours: undefined as number | undefined,
 });
 
@@ -110,25 +110,29 @@ const fetchCredentials = async () => {
 };
 
 const handleGenerateCredentials = async () => {
-  if (!quizId.value || generateForm.count < 1) return;
+  if (!quizId.value) return;
   isGenerating.value = true;
   generationError.value = null;
-  newlyGeneratedCredentials.value = []; // Clear previous results
+  newlyGeneratedCredential.value = null; // Clear previous result
 
   try {
-    const payload = {
-      count: generateForm.count,
+    // Payload always includes count: 1 now
+    const payload: { count: 1; expiryHours?: number; username?: string} = {
+      count: 1,
       // Only include expiryHours if it's a positive number
       ...(generateForm.expiryHours && generateForm.expiryHours > 0
         ? { expiryHours: generateForm.expiryHours }
         : {}),
+      // Include username if provided
+      ...(generateForm.username ? { username: generateForm.username } : {}),
     };
     const generated = await generateAdminQuizCredentials(quizId.value, payload);
-    newlyGeneratedCredentials.value = generated;
-    // Optionally refresh the main list immediately or show a success message
-    // For simplicity, we'll just show the newly generated ones for now.
-    // await fetchCredentials(); // Uncomment to refresh the main list
-    generateForm.count = 1; // Reset form
+    newlyGeneratedCredential.value = generated; // Assign the single object
+    // Refresh the list of existing credentials
+    await fetchCredentials();
+
+    // Reset form
+    generateForm.username = ''; // Reset username
     generateForm.expiryHours = undefined;
   } catch (error: any) {
     console.error('Error generating credentials:', error);
@@ -138,16 +142,20 @@ const handleGenerateCredentials = async () => {
   }
 };
 
-const copyGeneratedUsernames = () => {
-  const usernames = newlyGeneratedCredentials.value.map(c => c.username).join('\n');
-  navigator.clipboard.writeText(usernames)
+const copyGeneratedCredentials = () => {
+  if (!newlyGeneratedCredential.value) return; // Check if object exists
+
+  const cred = newlyGeneratedCredential.value;
+  const credentialsText = `Username: ${cred.username}\nPassword: ${cred.password || 'N/A'}`;
+
+  navigator.clipboard.writeText(credentialsText)
     .then(() => {
-      // Optional: show a success message
-      console.log('Usernames copied to clipboard');
+      console.log('Credentials copied to clipboard');
+      // Optional: show a temporary success message to the user
     })
     .catch(err => {
-      console.error('Failed to copy usernames: ', err);
-      // Optional: show an error message
+      console.error('Failed to copy credentials: ', err);
+      // Optional: show an error message to the user
     });
 };
 

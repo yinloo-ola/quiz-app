@@ -1,17 +1,18 @@
 package handlers
 
 import (
-	"github.com/yinloo-ola/quiz-app/backend/database"
-	"github.com/yinloo-ola/quiz-app/backend/middleware"
-	"github.com/yinloo-ola/quiz-app/backend/models"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/yinloo-ola/quiz-app/backend/database"
+	"github.com/yinloo-ola/quiz-app/backend/middleware"
+	"github.com/yinloo-ola/quiz-app/backend/models"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
-	"errors"
 )
 
 // --- Structs for Create Quiz Request --- //
@@ -25,7 +26,7 @@ type CreateChoiceRequest struct {
 // CreateQuestionRequest defines the structure for a question within a quiz creation request.
 type CreateQuestionRequest struct {
 	Text    string                `json:"text" binding:"required"`
-	Type    string                `json:"type" binding:"required"` // Add this line
+	Type    string                `json:"type" binding:"required"`               // Add this line
 	Choices []CreateChoiceRequest `json:"choices" binding:"required,min=1,dive"` // Must have at least one choice
 	// TODO: Add Order fields if needed later
 }
@@ -34,7 +35,7 @@ type CreateQuestionRequest struct {
 type CreateQuizRequest struct {
 	Title       string                  `json:"title" binding:"required"`
 	Description string                  `json:"description"`
-	TimeLimit   *uint                   `json:"time_limit"` // Optional time limit in minutes
+	TimeLimit   *uint                   `json:"time_limit"`                              // Optional time limit in minutes
 	Questions   []CreateQuestionRequest `json:"questions" binding:"required,min=1,dive"` // Must have at least one question
 }
 
@@ -52,16 +53,16 @@ type QuestionInput struct {
 	ID      *uint         `json:"id"` // Optional ID from frontend, not used in delete/recreate
 	Text    string        `json:"text" binding:"required"`
 	Type    string        `json:"type" binding:"required,oneof=single multi"` // Validate type
-	Choices []ChoiceInput `json:"choices" binding:"required,dive"` // Use dive for nested validation
+	Choices []ChoiceInput `json:"choices" binding:"required,dive"`            // Use dive for nested validation
 }
 
 // UpdateQuizRequest defines the expected JSON body for updating a quiz.
 // Uses pointers for optional fields.
 type UpdateQuizRequest struct {
-	Title           *string         `json:"title"`           // Optional update
-	Description     *string         `json:"description"`     // Optional update
-	TimeLimitSeconds *uint           `json:"time_limit_seconds"` // Optional update, use pointer to distinguish 0/nil from not provided
-	Questions       *[]QuestionInput `json:"questions"`       // Pointer to slice to detect if questions array was provided for update
+	Title            *string          `json:"title"`              // Optional update
+	Description      *string          `json:"description"`        // Optional update
+	TimeLimitSeconds *uint            `json:"time_limit_seconds"` // Optional update, use pointer to distinguish 0/nil from not provided
+	Questions        *[]QuestionInput `json:"questions"`          // Pointer to slice to detect if questions array was provided for update
 }
 
 // --- Structs for Update Question Request --- //
@@ -591,7 +592,7 @@ func AddQuestionHandler(c *gin.Context) {
 		// Log the error, but maybe return a simpler success message if refetch fails?
 		log.Printf("Error refetching question %d after creation: %v", newQuestion.ID, err)
 		c.JSON(http.StatusCreated, gin.H{
-			"message": "Question created successfully, but failed to refetch details",
+			"message":     "Question created successfully, but failed to refetch details",
 			"question_id": newQuestion.ID,
 		})
 		return
@@ -703,7 +704,7 @@ func UpdateQuestionHandler(c *gin.Context) {
 	if err := database.DB.Preload("Choices").First(&updatedQuestion, targetQuestion.ID).Error; err != nil {
 		log.Printf("Error refetching question %d after update: %v", targetQuestion.ID, err)
 		c.JSON(http.StatusOK, gin.H{
-			"message": "Question updated successfully, but failed to refetch details",
+			"message":     "Question updated successfully, but failed to refetch details",
 			"question_id": targetQuestion.ID,
 		})
 		return

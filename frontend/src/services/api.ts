@@ -5,7 +5,8 @@ import type {
   QuizInput,
   ResponderCredential,
   QuizResponseSummary,
-  QuizResponseDetail
+  QuizResponseDetail,
+  GenerateCredentialsResponse // Import the new type
 } from '@/types'; // Import Quiz and ResponderCredential types
 
 const apiClient = axios.create({
@@ -134,6 +135,27 @@ export const updateAdminQuiz = async (quizId: number, quizData: QuizInput): Prom
   }
 };
 
+/**
+ * Delete a specific quiz by its ID.
+ * @param quizId The ID of the quiz to delete.
+ * @returns Promise resolving when the quiz is successfully deleted.
+ */
+export const deleteAdminQuiz = async (quizId: number): Promise<void> => {
+  try {
+    await apiClient.delete(`/admin/quizzes/${quizId}`);
+    console.log(`[API] Quiz ${quizId} deleted successfully.`);
+  } catch (error) {
+    console.error(`Error deleting admin quiz ${quizId}:`, error);
+    if (axios.isAxiosError(error) && error.response) {
+      // Extract backend error message if available
+      throw new Error(error.response.data.error || `Failed to delete quiz ${quizId}`);
+    } else {
+      // Handle non-Axios errors or errors without a response
+      throw new Error('An unexpected error occurred while deleting the quiz.');
+    }
+  }
+};
+
 // --- Credential Management API Functions ---
 
 // Function to fetch credentials for a specific quiz
@@ -155,24 +177,28 @@ export const getAdminQuizCredentials = async (quizId: number): Promise<Responder
 interface GenerateCredentialsPayload {
   count: number;
   expiryHours?: number; // Optional expiry in hours
+  username?: string; // Optional specific username
 }
 
 // Function to generate new credentials for a specific quiz
 export const generateAdminQuizCredentials = async (
   quizId: number,
   payload: GenerateCredentialsPayload
-): Promise<ResponderCredential[]> => {
+): Promise<GenerateCredentialsResponse> => { // Update return type
   try {
     // Map frontend camelCase expiryHours to backend snake_case expiry_hours if present
+    // Include username if provided
     const backendPayload = {
       count: payload.count,
       ...(payload.expiryHours !== undefined && { expiry_hours: payload.expiryHours }),
+      ...(payload.username && { username: payload.username }), // Add username if present
     };
-    const response = await apiClient.post<ResponderCredential[]>(
+    console.log('[API] Generating credentials with payload:', backendPayload); // Log the payload being sent
+    const response = await apiClient.post<GenerateCredentialsResponse>( // Expect single object response
       `/admin/quizzes/${quizId}/credentials`,
       backendPayload
     );
-    return response.data; // Assuming backend returns the newly created credentials
+    return response.data; // Return the response data directly
   } catch (error) {
     console.error(`Error generating credentials for quiz ${quizId}:`, error);
     if (axios.isAxiosError(error) && error.response) {
