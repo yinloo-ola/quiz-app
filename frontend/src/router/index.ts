@@ -57,6 +57,12 @@ const routes: Array<RouteRecordRaw> = [
         name: 'admin-quiz-credentials',
         component: () => import('@/views/admin/AdminCredentialManager.vue'), // Lazy load
         props: true // Pass route params as props
+      },
+      {
+        path: 'responses/:responseId',
+        name: 'AdminResponseDetails',
+        component: () => import('@/views/admin/AdminResponseDetails.vue'), // Lazy load the new component
+        props: true // Pass responseId as prop
       }
       // Add other admin child routes here
     ],

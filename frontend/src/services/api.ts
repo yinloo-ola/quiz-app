@@ -1,6 +1,12 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth'; // Use '@/stores' alias
-import type { Quiz, QuizInput } from '@/types'; // Import Quiz types
+import type {
+  Quiz,
+  QuizInput,
+  ResponderCredential,
+  QuizResponseSummary,
+  QuizResponseDetail
+} from '@/types'; // Import Quiz and ResponderCredential types
 
 const apiClient = axios.create({
   baseURL: 'http://localhost:8081', // Your Go backend URL
@@ -124,6 +130,87 @@ export const updateAdminQuiz = async (quizId: number, quizData: QuizInput): Prom
       throw new Error(error.response.data.error || `Failed to update quiz ${quizId}`);
     } else {
       throw new Error('An unexpected error occurred while updating the quiz.');
+    }
+  }
+};
+
+// --- Credential Management API Functions ---
+
+// Function to fetch credentials for a specific quiz
+export const getAdminQuizCredentials = async (quizId: number): Promise<ResponderCredential[]> => {
+  try {
+    const response = await apiClient.get<ResponderCredential[]>(`/admin/quizzes/${quizId}/credentials`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching credentials for quiz ${quizId}:`, error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.error || `Failed to fetch credentials for quiz ${quizId}`);
+    } else {
+      throw new Error('An unexpected error occurred while fetching credentials.');
+    }
+  }
+};
+
+// Interface for the payload to generate credentials
+interface GenerateCredentialsPayload {
+  count: number;
+  expiryHours?: number; // Optional expiry in hours
+}
+
+// Function to generate new credentials for a specific quiz
+export const generateAdminQuizCredentials = async (
+  quizId: number,
+  payload: GenerateCredentialsPayload
+): Promise<ResponderCredential[]> => {
+  try {
+    // Map frontend camelCase expiryHours to backend snake_case expiry_hours if present
+    const backendPayload = {
+      count: payload.count,
+      ...(payload.expiryHours !== undefined && { expiry_hours: payload.expiryHours }),
+    };
+    const response = await apiClient.post<ResponderCredential[]>(
+      `/admin/quizzes/${quizId}/credentials`,
+      backendPayload
+    );
+    return response.data; // Assuming backend returns the newly created credentials
+  } catch (error) {
+    console.error(`Error generating credentials for quiz ${quizId}:`, error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.error || `Failed to generate credentials for quiz ${quizId}`);
+    } else {
+      throw new Error('An unexpected error occurred while generating credentials.');
+    }
+  }
+};
+
+// --- Response Management API Functions ---
+
+// Function to fetch response summaries for a specific quiz
+export const getAdminQuizResponses = async (quizId: number): Promise<QuizResponseSummary[]> => {
+  try {
+    const response = await apiClient.get<QuizResponseSummary[]>(`/admin/quizzes/${quizId}/responses`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching responses for quiz ${quizId}:`, error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.error || `Failed to fetch responses for quiz ${quizId}`);
+    } else {
+      throw new Error('An unexpected error occurred while fetching responses.');
+    }
+  }
+};
+
+// Function to fetch detailed information for a specific response
+export const getAdminResponseDetails = async (responseId: number): Promise<QuizResponseDetail> => {
+  try {
+    const response = await apiClient.get<QuizResponseDetail>(`/admin/responses/${responseId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching details for response ${responseId}:`, error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.error || `Failed to fetch details for response ${responseId}`);
+    } else {
+      throw new Error('An unexpected error occurred while fetching response details.');
     }
   }
 };

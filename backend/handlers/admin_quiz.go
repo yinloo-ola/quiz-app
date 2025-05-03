@@ -9,7 +9,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm" // Import gorm for error types like ErrRecordNotFound
+	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
+	"errors"
 )
 
 // --- Structs for Create Quiz Request --- //
@@ -23,8 +25,9 @@ type CreateChoiceRequest struct {
 // CreateQuestionRequest defines the structure for a question within a quiz creation request.
 type CreateQuestionRequest struct {
 	Text    string                `json:"text" binding:"required"`
+	Type    string                `json:"type" binding:"required"` // Add this line
 	Choices []CreateChoiceRequest `json:"choices" binding:"required,min=1,dive"` // Must have at least one choice
-	// TODO: Add Order/Type fields if needed later
+	// TODO: Add Order fields if needed later
 }
 
 // CreateQuizRequest defines the structure for the entire create quiz request body.
@@ -37,13 +40,28 @@ type CreateQuizRequest struct {
 
 // --- Structs for Update Quiz Request --- //
 
-// UpdateQuizRequest defines the structure for the update quiz request body.
-// Only includes fields that can be updated directly on the quiz.
-// Omitting Questions for simplicity in this update handler.
+// ChoiceInput defines the structure for a choice in create/update requests.
+type ChoiceInput struct {
+	ID        *uint  `json:"id"` // Optional ID from frontend, not used in delete/recreate
+	Text      string `json:"text" binding:"required"`
+	IsCorrect bool   `json:"isCorrect"` // Matches frontend camelCase
+}
+
+// QuestionInput defines the structure for a question in create/update requests.
+type QuestionInput struct {
+	ID      *uint         `json:"id"` // Optional ID from frontend, not used in delete/recreate
+	Text    string        `json:"text" binding:"required"`
+	Type    string        `json:"type" binding:"required,oneof=single multi"` // Validate type
+	Choices []ChoiceInput `json:"choices" binding:"required,dive"` // Use dive for nested validation
+}
+
+// UpdateQuizRequest defines the expected JSON body for updating a quiz.
+// Uses pointers for optional fields.
 type UpdateQuizRequest struct {
-	Title       *string `json:"title"`       // Pointer to allow omitting fields (use binding:"omitempty" if needed? GORM handles partial updates)
-	Description *string `json:"description"` // Pointer to allow omitting fields
-	TimeLimit   *uint   `json:"time_limit"`  // Pointer to allow omitting fields / setting null
+	Title           *string         `json:"title"`           // Optional update
+	Description     *string         `json:"description"`     // Optional update
+	TimeLimitSeconds *uint           `json:"time_limit_seconds"` // Optional update, use pointer to distinguish 0/nil from not provided
+	Questions       *[]QuestionInput `json:"questions"`       // Pointer to slice to detect if questions array was provided for update
 }
 
 // --- Structs for Update Question Request --- //
@@ -104,6 +122,7 @@ func CreateQuizHandler(c *gin.Context) {
 	for _, questionReq := range req.Questions {
 		newQuestion := models.Question{
 			Text:   questionReq.Text,
+			Type:   models.QuestionType(questionReq.Type), // Convert string to QuestionType
 			QuizID: newQuiz.ID,
 			// Order: // Set order if needed
 			// Type:  // Set type if needed
@@ -161,7 +180,8 @@ func GetQuizzesHandler(c *gin.Context) {
 
 	// 2. Find quizzes belonging to the admin
 	var quizzes []models.Quiz
-	result := database.DB.Where("admin_user_id = ?", adminUserID).Order("created_at desc").Find(&quizzes)
+	// Preload Questions and their Choices to include them in the response
+	result := database.DB.Preload("Questions.Choices").Where("admin_user_id = ?", adminUserID).Order("created_at desc").Find(&quizzes)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch quizzes: " + result.Error.Error()})
 		return
@@ -247,61 +267,160 @@ func UpdateQuizHandler(c *gin.Context) {
 	// 3. Bind JSON request body
 	var req UpdateQuizRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
-		return
-	}
-
-	// 4. Find the existing quiz
-	var existingQuiz models.Quiz
-	result := database.DB.First(&existingQuiz, quizID)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
+		// Provide more specific validation errors if possible
+		validationErrs, ok := err.(validator.ValidationErrors)
+		if ok {
+			errorsMap := make(map[string]string)
+			for _, fieldErr := range validationErrs {
+				errorsMap[fieldErr.Field()] = fmt.Sprintf("Validation failed on '%s' tag", fieldErr.Tag())
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Validation failed", "details": errorsMap})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error finding quiz: " + result.Error.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
 		}
 		return
 	}
 
-	// 5. Verify ownership
-	if existingQuiz.AdminUserID != adminUserID {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"}) // Keep consistent with GET detail
+	// 4. Start Transaction
+	tx := database.DB.Begin()
+	if tx.Error != nil {
+		log.Printf("Failed to start transaction: %v", tx.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start database transaction"})
+		return
+	}
+	// Defer Rollback in case of panic or error returns
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			// Optionally re-panic or log
+			panic(r) // Re-panic if needed
+		} else if tx.Error != nil {
+			// If tx.Error is set during commit or other operations
+			log.Printf("Rolling back transaction due to error: %v", tx.Error)
+			tx.Rollback()
+		}
+	}()
+
+	// 5. Find the existing quiz (within transaction)
+	var existingQuiz models.Quiz
+	if err := tx.First(&existingQuiz, quizID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			tx.Rollback() // Rollback before sending response
+			c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
+		} else {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error finding quiz: " + err.Error()})
+		}
 		return
 	}
 
-	// 6. Update fields if provided in the request (using pointers)
+	// 6. Verify ownership
+	if existingQuiz.AdminUserID != adminUserID {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found or not owned by user"}) // Keep consistent with GET detail
+		return
+	}
+
+	// 7. Update top-level quiz fields if provided
 	updates := make(map[string]interface{})
+	needsUpdate := false
 	if req.Title != nil {
 		updates["title"] = *req.Title
+		needsUpdate = true
 	}
 	if req.Description != nil {
 		updates["description"] = *req.Description
+		needsUpdate = true
 	}
-	// Handle TimeLimit separately as it can be set to null/0 or a value
-	if req.TimeLimit != nil {
-		updates["time_limit"] = *req.TimeLimit
+	// Use the correct JSON key `time_limit_seconds` and DB field `TimeLimitSeconds`
+	if req.TimeLimitSeconds != nil {
+		updates["time_limit_seconds"] = *req.TimeLimitSeconds // Use the correct field name from the DB model
+		needsUpdate = true
 	}
-	// If you need to allow explicitly setting TimeLimit to null (or 0), 
-	// the pointer approach works. If 0 should be ignored, add a check: 
-	// if req.TimeLimit != nil && *req.TimeLimit > 0 { ... }
 
-	// 7. Perform the update if there are changes
-	if len(updates) > 0 {
-		updateResult := database.DB.Model(&existingQuiz).Updates(updates)
-		if updateResult.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update quiz: " + updateResult.Error.Error()})
+	if needsUpdate {
+		if err := tx.Model(&existingQuiz).Updates(updates).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update quiz details: " + err.Error()})
 			return
 		}
-		if updateResult.RowsAffected == 0 {
-			// This might happen in race conditions or if data hasn't changed, but good to note.
-			log.Printf("Update requested for quiz %d, but no rows were affected.", quizID)
+	}
+
+	// 8. Handle Question/Choice updates only if 'questions' key was present in the request
+	if req.Questions != nil {
+		log.Printf("Updating questions for quiz ID: %d", quizID)
+
+		// 8a. Delete existing choices associated with the quiz
+		if err := tx.Where("question_id IN (SELECT id FROM questions WHERE quiz_id = ?)", quizID).Delete(&models.Choice{}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete existing choices: " + err.Error()})
+			return
+		}
+
+		// 8b. Delete existing questions associated with the quiz
+		if err := tx.Where("quiz_id = ?", quizID).Delete(&models.Question{}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete existing questions: " + err.Error()})
+			return
+		}
+
+		// 8c. Create new questions and choices based on the request
+		for _, questionReq := range *req.Questions { // Dereference pointer
+			questionType, err := models.ParseQuestionType(questionReq.Type)
+			if err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid question type '%s' provided: %v", questionReq.Type, err)})
+				return
+			}
+
+			newQuestion := models.Question{
+				Text:   questionReq.Text,
+				Type:   questionType,
+				QuizID: quizID, // Link to the current quiz
+			}
+			if err := tx.Create(&newQuestion).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create question: " + err.Error()})
+				return
+			}
+
+			// Convert []ChoiceInput to []models.CorrectableChoice for validation
+			choicesForValidation := make([]models.CorrectableChoice, len(questionReq.Choices))
+			for i := range questionReq.Choices {
+				choicesForValidation[i] = questionReq.Choices[i] // Assigning concrete type that satisfies interface
+			}
+
+			if err := models.ValidateChoicesForQuestionType(questionType, choicesForValidation); err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid choices for question '%s': %v", questionReq.Text, err)})
+				return
+			}
+
+			for _, choiceReq := range questionReq.Choices {
+				newChoice := models.Choice{
+					Text:       choiceReq.Text,
+					IsCorrect:  choiceReq.IsCorrect,
+					QuestionID: newQuestion.ID, // Link to the newly created question
+				}
+				if err := tx.Create(&newChoice).Error; err != nil {
+					tx.Rollback()
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create choice: " + err.Error()})
+					return
+				}
+			}
 		}
 	}
 
-	// 8. Return the updated quiz (refetch to ensure consistency, or just return existingQuiz if optimistic)
-	// Refetching is safer to show the actual state after update.
+	// 9. Commit Transaction
+	if err := tx.Commit().Error; err != nil {
+		// Rollback already deferred, just log and return error
+		log.Printf("Failed to commit transaction: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction: " + err.Error()})
+		return
+	}
+
+	// 10. Return the updated quiz (refetch outside transaction to ensure consistency)
 	var updatedQuiz models.Quiz
-	// Preload again if you want to return questions/choices in the response
 	fetchResult := database.DB.Preload("Questions").Preload("Questions.Choices").First(&updatedQuiz, quizID)
 	if fetchResult.Error != nil {
 		// Log error, but might still return OK if update succeeded
@@ -435,6 +554,7 @@ func AddQuestionHandler(c *gin.Context) {
 	// 5. Create the Question record
 	newQuestion := models.Question{
 		Text:   req.Text,
+		Type:   models.QuestionType(req.Type), // Convert string to QuestionType
 		QuizID: targetQuiz.ID,
 		// Order/Type can be added later if needed
 	}
@@ -670,4 +790,10 @@ func DeleteQuestionHandler(c *gin.Context) {
 
 	// 7. Respond with No Content
 	c.Status(http.StatusNoContent)
+}
+
+// Helper function to validate choices based on question type
+// This should ideally live in the models package or a validation service
+func (ci ChoiceInput) GetIsCorrect() bool { // Helper for interface matching if needed
+	return ci.IsCorrect
 }

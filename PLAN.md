@@ -110,15 +110,16 @@ This document outlines the tasks required to build the Vue.js frontend and Golan
   - [x] Implement Quiz Edit View (`AdminQuizEdit.vue`) - Implemented
   - [x] API calls for create (in `AdminQuizCreate.vue`)
   - [x] API calls for update (in `AdminQuizEdit.vue`)
-- [ ] Implement Credential Management View (`AdminCredentialManager.vue`) - *Needs creation*
-  - [ ] Fetch/display existing credentials for a quiz
-  - [ ] Form to generate new credentials (set expiry)
-  - [ ] Display newly generated credentials
-- [ ] Implement Response List View (`AdminResponseList.vue`) - *Needs creation*
-  - [ ] Fetch/display responses for a quiz (responder, score, submitted_at)
-  - [ ] Link to view response details
-- [ ] Implement Response Details View (`AdminResponseDetails.vue`) - *Needs creation*
-  - [ ] Fetch/display specific response details (answers given vs correct answers)
+- [x] Implement Credential Management View (`AdminCredentialManager.vue`) - Implemented
+  - [x] Fetch/display existing credentials for a quiz
+  - [x] Form to generate new credentials (set expiry)
+  - [x] Display newly generated credentials
+- [x] Implement Response List View (`AdminResponseList.vue`) - Implemented
+  - [x] Fetch/display responses for a quiz (responder, score, submitted_at)
+  - [x] Link to view response details
+- [x] Implement Response Details View (`AdminResponseDetails.vue`) - Implemented
+  - [x] Fetch/display detailed response (quiz title, responder, submitted_at, answers provided)
+  - [x] Compare provided answers against correct choices
 
 ## Phase 5: Frontend - Responder UI
 

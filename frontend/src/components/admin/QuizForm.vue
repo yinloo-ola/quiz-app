@@ -136,9 +136,7 @@
                 :type="question.type === 'single' ? 'radio' : 'checkbox'"
                 :id="`choice-correct-${index}-${choiceIndex}`"
                 :name="`correct-choice-${index}`" 
-                :value="choiceIndex" 
-                v-model="choice.is_correct"
-                :checked="choice.is_correct"
+                :checked="choice.isCorrect"
                 :disabled="isLoading"
                 @change="handleChoiceCorrectness(index, choiceIndex)"
                 class="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
@@ -208,8 +206,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import type { Quiz, Question, Choice, QuestionType, QuestionInput, ChoiceInput, QuizCreatePayload } from '@/types';
+import { ref, watch, defineProps, defineEmits } from 'vue';
+import type { QuestionInput, ChoiceInput, Quiz, QuizCreatePayload } from '@/types';
 
 // --- Props --- 
 
@@ -259,7 +257,7 @@ const addQuestion = () => {
   questions.value.push({
     text: '',
     type: 'single', 
-    choices: [{ text: '', is_correct: false }, { text: '', is_correct: false }], 
+    choices: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }], 
   });
   questionsError.value = null; 
 };
@@ -274,7 +272,7 @@ const removeQuestion = (index: number) => {
 
 const addChoice = (questionIndex: number) => {
   if (props.isLoading) return;
-  questions.value[questionIndex].choices.push({ text: '', is_correct: false }); 
+  questions.value[questionIndex].choices.push({ text: '', isCorrect: false }); 
   if (questionErrors.value[questionIndex]?.choices?.includes('at least two choices')) {
     questionErrors.value[questionIndex]!.choices = null; 
   }
@@ -299,10 +297,10 @@ const handleChoiceCorrectness = (questionIndex: number, changedChoiceIndex?: num
   if (question.type === 'single') {
     question.choices.forEach((choice: ChoiceInput) => { 
       if (changedChoiceIndex !== undefined) {
-        choice.is_correct = (choice === question.choices[changedChoiceIndex]);
+        choice.isCorrect = (choice === question.choices[changedChoiceIndex]);
       } 
-      else if (choice.is_correct && question.choices.findIndex((c: ChoiceInput) => c.is_correct) !== question.choices.indexOf(choice)) { 
-         choice.is_correct = false;
+      else if (choice.isCorrect && question.choices.findIndex((c: ChoiceInput) => c.isCorrect) !== question.choices.indexOf(choice)) { 
+         choice.isCorrect = false;
       }
     });
   }
@@ -334,7 +332,7 @@ const handleSubmit = () => {
         choices: q.choices.map((c: ChoiceInput) => ({ 
           id: c.id, 
           text: c.text,
-          is_correct: !!c.is_correct 
+          isCorrect: !!c.isCorrect // Change key to isCorrect (camelCase)
         }))
       })),
     };
@@ -388,7 +386,7 @@ const validateQuiz = (): boolean => {
         hasEmptyChoice = true;
         isValid = false;
       }
-      if (choice.is_correct) {
+      if (choice.isCorrect) {
         correctChoiceCount++;
       }
     });
@@ -418,11 +416,14 @@ watch(() => props.initialQuizData, (newData: Quiz | null | undefined) => {
     title.value = newData.title || '';
     description.value = newData.description || '';
     timeLimitSeconds.value = newData.time_limit_seconds === undefined || newData.time_limit_seconds === null ? 0 : newData.time_limit_seconds;
-    questions.value = JSON.parse(JSON.stringify(newData.questions || []));
-    questions.value.forEach((q: QuestionInput) => { 
-      q.choices.forEach((c: ChoiceInput) => { c.is_correct = !!c.is_correct; }); 
-    });
-     titleError.value = null;
+    questions.value = JSON.parse(JSON.stringify(newData.questions || [])).map((q: any) => ({
+      ...q,
+      choices: q.choices.map((c: any) => ({
+        ...c,
+        isCorrect: !!c.isCorrect // Ensure boolean, using camelCase from backend
+      }))
+    }));
+    titleError.value = null;
     timeLimitError.value = null;
     questionsError.value = null;
     questionErrors.value = [];
