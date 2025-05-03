@@ -37,6 +37,28 @@ func MigrateDatabase() {
 
 	// AutoMigrate will create or update tables based on the struct definitions.
 	// It will ONLY add missing fields, WON'T delete/change existing ones.
+	// --- Manual index migration for ResponderCredential --- 
+	// GORM AutoMigrate doesn't reliably handle changing unique indexes.
+	// We need to manually drop the old index if it exists.
+	migrator := DB.Migrator()
+	model := &models.ResponderCredential{}
+	
+	// Check for common default names GORM might have used for the old index
+	oldIndexNames := []string{"idx_responder_credentials_username", "uix_responder_credentials_username"}
+	for _, indexName := range oldIndexNames {
+		if migrator.HasIndex(model, indexName) {
+			log.Printf("Dropping old index '%s' on responder_credentials...", indexName)
+			err := migrator.DropIndex(model, indexName)
+			if err != nil {
+				log.Fatalf("Failed to drop old index %s: %v", indexName, err)
+			}
+			log.Printf("Successfully dropped old index '%s'.", indexName)
+			// Assuming only one of the old names exists, break after dropping
+			break 
+		}
+	}
+	// ------------------------------------------------------
+
 	err := DB.AutoMigrate(
 		&models.AdminUser{},
 		&models.Quiz{},

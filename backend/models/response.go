@@ -7,9 +7,9 @@ import (
 // ResponderCredential represents a temporary credential for a user to take a specific quiz
 type ResponderCredential struct {
 	BaseModel               // Embed our custom base model
-	QuizID       uint       `gorm:"not null" json:"quizId"`
+	QuizID       uint       `gorm:"not null;uniqueIndex:idx_quiz_username" json:"quizId"`
 	Quiz         Quiz       `json:"quiz,omitempty"` // Belongs to Quiz
-	Username     string     `gorm:"uniqueIndex;not null" json:"username"`
+	Username     string     `gorm:"not null;uniqueIndex:idx_quiz_username" json:"username"`
 	PasswordHash string     `gorm:"not null;default:''" json:"-"` // Hashed password - Exclude!
 	ExpiresAt    *time.Time `gorm:"not null" json:"expiresAt,omitempty"`
 	Used         bool       `gorm:"default:false" json:"used"` // Has the credential been used?

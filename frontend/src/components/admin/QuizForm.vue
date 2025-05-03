@@ -303,6 +303,16 @@ const handleChoiceCorrectness = (questionIndex: number, changedChoiceIndex?: num
          choice.isCorrect = false;
       }
     });
+  } else if (question.type === 'multi') {
+    // For multiple choice questions, we only need to handle the changed choice
+    // No need to modify other choices as multiple can be correct
+    if (changedChoiceIndex !== undefined) {
+      const choice = question.choices[changedChoiceIndex];
+      if (choice) {
+        // Toggle the isCorrect value of the changed choice
+        choice.isCorrect = !choice.isCorrect;
+      }
+    }
   }
 
   if (questionErrors.value[questionIndex]?.choices?.includes('least one choice must be marked as correct')) {
