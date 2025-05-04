@@ -19,7 +19,7 @@ type Quiz struct {
 	BaseModel   // Embed our custom base model
 	Title       string     `gorm:"not null" json:"title"`
 	Description string     `json:"description,omitempty"`
-	TimeLimit   *uint      `json:"timeLimit,omitempty"`
+	TimeLimit   *uint      `json:"timeLimit"`
 	Status      string     `gorm:"not null;default:'Draft'" json:"status"`
 	AdminUserID uint       `gorm:"not null" json:"adminUserId"`
 	AdminUser   AdminUser  `json:"-"`

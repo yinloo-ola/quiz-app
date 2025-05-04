@@ -20,7 +20,7 @@ import (
 // CreateChoiceRequest defines the structure for a choice within a question creation request.
 type CreateChoiceRequest struct {
 	Text      string `json:"text" binding:"required"`
-	IsCorrect bool   `json:"is_correct"` // Defaults to false if omitted
+	IsCorrect bool   `json:"isCorrect"` // Defaults to false if omitted
 }
 
 // CreateQuestionRequest defines the structure for a question within a quiz creation request.
@@ -33,9 +33,9 @@ type CreateQuestionRequest struct {
 
 // CreateQuizRequest defines the structure for the entire create quiz request body.
 type CreateQuizRequest struct {
-	Title       string                  `json:"title" binding:"required"`
-	Description string                  `json:"description"`
-	TimeLimit   *uint                   `json:"time_limit"`                              // Optional time limit in minutes
+	Title       string                  `json:"title" binding:"required"`                  // Quiz title
+	Description string                  `json:"description"`                               // Optional description
+	TimeLimit   *uint                   `json:"timeLimit"`                                // Optional time limit in seconds
 	Questions   []CreateQuestionRequest `json:"questions" binding:"required,min=1,dive"` // Must have at least one question
 }
 
@@ -61,7 +61,7 @@ type QuestionInput struct {
 type UpdateQuizRequest struct {
 	Title            *string          `json:"title"`              // Optional update
 	Description      *string          `json:"description"`        // Optional update
-	TimeLimitSeconds *uint            `json:"time_limit_seconds"` // Optional update, use pointer to distinguish 0/nil from not provided
+	TimeLimit        *uint            `json:"timeLimit"`          // Time limit in seconds
 	Questions        *[]QuestionInput `json:"questions"`          // Pointer to slice to detect if questions array was provided for update
 }
 
@@ -333,9 +333,10 @@ func UpdateQuizHandler(c *gin.Context) {
 		updates["description"] = *req.Description
 		needsUpdate = true
 	}
-	// Use the correct JSON key `time_limit_seconds` and DB field `TimeLimitSeconds`
-	if req.TimeLimitSeconds != nil {
-		updates["time_limit_seconds"] = *req.TimeLimitSeconds // Use the correct field name from the DB model
+	// Update the time limit field if provided
+	if req.TimeLimit != nil {
+		// The field in the struct is TimeLimit, which maps to time_limit in the database (GORM convention)
+		updates["time_limit"] = *req.TimeLimit
 		needsUpdate = true
 	}
 

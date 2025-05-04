@@ -8,7 +8,7 @@ export type QuestionType = 'single' | 'multi';
 export interface Choice {
   id: number;
   text: string;
-  is_correct: boolean;
+  isCorrect: boolean;
 }
 
 export interface Question {
@@ -22,7 +22,7 @@ export interface Quiz {
   id: number;
   title: string;
   description?: string;
-  time_limit_seconds?: number;
+  timeLimit?: number; // Time limit in seconds
   status?: string; // Added quiz status (e.g., 'draft', 'published')
   questions: Question[];
   created_at?: string; // Optional metadata
@@ -50,7 +50,7 @@ export interface QuestionInput {
 export type QuizInput = {
   title: string;
   description?: string;
-  time_limit_seconds?: number; // Optional on creation, backend might default
+  timeLimit?: number; // Time limit in seconds
   questions: QuestionInput[];
 };
 
@@ -58,7 +58,7 @@ export type QuizInput = {
 export interface QuizCreatePayload {
   title: string;
   description?: string;
-  time_limit_seconds?: number;
+  timeLimit?: number; // Time limit in seconds
   questions: QuestionInput[];
 }
 
@@ -94,27 +94,70 @@ export interface GenerateCredentialsResponse {
 export interface QuizResponseSummary {
   id: number;
   quizId: number;
-  responderUsername: string; // The username of the responder who took the quiz
+  // Support both camelCase and snake_case property names
+  responderUsername?: string;
+  responder_username: string; // The username of the responder who took the quiz
   score?: number | null; // Calculated score (might be null if not graded)
-  submittedAt: string; // ISO Date string when the response was submitted
-  createdAt: string; // ISO Date string
+  submittedAt?: string;
+  submitted_at: string; // ISO Date string when the response was submitted
+  createdAt?: string;
+  created_at?: string; // ISO Date string
+  // Time tracking fields
+  startedAt?: string;
+  started_at?: string;
+  timeTakenSeconds?: number;
+  time_taken_seconds?: number;
+  timeTakenFormatted?: string;
+  time_taken_formatted?: string;
+}
+
+// Represents a choice in a question
+export interface Choice {
+  id: number;
+  text: string;
+  isCorrect: boolean;
 }
 
 // Represents an answer submitted by a responder for a specific question
 export interface SubmittedAnswer {
-  questionId: number;
-  chosenChoiceIds: number[]; // Array of choice IDs selected by the responder
-  isCorrect?: boolean; // Optional: Backend might pre-calculate this for display
+  // Fields from the frontend submission (camelCase)
+  questionId?: number;
+  chosenChoiceIds?: number[]; // Array of choice IDs selected by the responder
+  questionText?: string; // The text of the question
+  selectedChoiceText?: string | null; // The text of the selected choice
+  answerText?: string | null; // The raw answer text (for multiple choices, this might be JSON)
+
+  // Fields from the backend response (snake_case)
+  question_text?: string; // The text of the question
+  selected_choice_text?: string | null; // The text of the selected choice
+  selected_choice_ids?: number[]; // IDs of all selected choices
+  answer_text?: string | null; // The raw answer text (for multiple choices, this might be JSON)
+  isCorrect?: boolean; // Whether the answer is correct
+  all_choices?: Choice[]; // All available choices for the question
+  correct_choice_ids?: number[]; // IDs of the correct choices
 }
 
 // Represents the detailed view of a submitted quiz response, including answers
 export interface QuizResponseDetail {
+  // Support both camelCase (frontend) and snake_case (API) formats
   id: number;
-  quizId: number;
-  quizTitle: string; // Title of the quiz taken
-  responderUsername: string;
-  submittedAt: string;
-  createdAt: string;
+  quizId?: number;
+  quiz_id?: number;
+  quizTitle?: string;
+  quiz_title: string; // Title of the quiz taken
+  responderUsername?: string;
+  responder_username: string;
+  startedAt?: string;
+  started_at?: string;
+  submittedAt?: string;
+  submitted_at: string;
+  createdAt?: string;
+  created_at?: string;
+  score?: number;
+  timeTakenSeconds?: number;
+  time_taken_seconds?: number;
+  timeTakenFormatted?: string;
+  time_taken_formatted?: string;
   answers: SubmittedAnswer[];
   // We might also need the original quiz questions/choices here to display them
   // alongside the answers, or fetch them separately.

@@ -21,7 +21,7 @@ This document outlines the tasks required to build the Vue.js frontend and Golan
   - [ ] `admin_users` (id, username, password_hash)
   - [ ] `quizzes` (id, title, description, time_limit_seconds, created_by, created_at, updated_at)
   - [ ] `questions` (id, quiz_id, text, type [single/multi], order, created_at, updated_at)
-  - [ ] `choices` (id, question_id, text, is_correct, order, created_at, updated_at)
+  - [ ] `choices` (id, question_id, text, isCorrect, order, created_at, updated_at)
   - [ ] `responder_credentials` (id, quiz_id, username, password_hash, expires_at, created_at)
   - [ ] `responses` (id, quiz_id, responder_username, submitted_at, score)
   - [ ] `answers` (id, response_id, question_id, selected_choice_ids_json)
@@ -75,18 +75,18 @@ This document outlines the tasks required to build the Vue.js frontend and Golan
 
 ## Phase 3: Core Responder Functionality (Backend API)
 
-- [ ] API Endpoint: Get Quiz for Responder (`GET /quizzes/{quiz_id}`)
-  - [ ] Requires temporary credential auth (use middleware/check)
-  - [ ] Handler logic (fetch quiz details, questions, choices _without_ `is_correct` flag)
-- [ ] API Endpoint: Submit Quiz (`POST /quizzes/{quiz_id}/submit`)
-  - [ ] Requires temporary credential auth
-  - [ ] Handler logic:
-    - [ ] Receive answers
-    - [ ] Validate submission (e.g., within time limit if applicable - maybe check server-side start time? Or trust client timer initially?)
-    - [ ] Calculate score based on submitted answers vs correct choices
-    - [ ] Store response record (username, quiz_id, score, timestamp)
-    - [ ] Store answers given
-    - [ ] Return score and correct answers map (question_id -> list of correct choice_ids)
+- [x] API Endpoint: Get Quiz for Responder (`GET /quizzes/{quiz_id}`)
+  - [x] Requires temporary credential auth (use middleware/check)
+  - [x] Handler logic (fetch quiz details, questions, choices _without_ `isCorrect` flag)
+- [x] API Endpoint: Submit Quiz (`POST /quizzes/{quiz_id}/submit`)
+  - [x] Requires temporary credential auth
+  - [x] Handler logic:
+    - [x] Receive answers
+    - [x] Validate submission (e.g., within time limit if applicable - maybe check server-side start time? Or trust client timer initially?)
+    - [x] Calculate score based on submitted answers vs correct choices
+    - [x] Store response record (username, quiz_id, score, timestamp)
+    - [x] Store answers given
+    - [x] Return score and correct answers map (question_id -> list of correct choice_ids)
 
 ## Phase 4: Frontend - Admin UI
 
@@ -105,7 +105,7 @@ This document outlines the tasks required to build the Vue.js frontend and Golan
 - [x] Implement Quiz Create/Edit Form (Component: `QuizForm.vue`, Create View: `AdminQuizCreate.vue`)
   - [x] Form for quiz details (title, description, time limit)
   - [x] Component for adding/editing questions (text, type [single/multi])
-  - [x] Component for adding/editing choices (text, is_correct checkbox)
+  - [x] Component for adding/editing choices (text, isCorrect checkbox)
   - [x] Dynamic add/remove buttons for questions/choices
   - [x] Implement Quiz Edit View (`AdminQuizEdit.vue`) - Implemented
   - [x] API calls for create (in `AdminQuizCreate.vue`)
@@ -123,24 +123,23 @@ This document outlines the tasks required to build the Vue.js frontend and Golan
 
 ## Phase 5: Frontend - Responder UI
 
-- [ ] Setup Vue Router for Responder section (`/login`, `/quiz/:id`, `/quiz/:id/result`)
-- [ ] Update Pinia `authStore` to handle responder login state
-- [ ] Update API client service with responder functions
-- [ ] Implement Responder Login Page (`ResponderLogin.vue`)
-  - [ ] Form for username/password, call login API, store temp token/session, redirect to quiz
-- [ ] Implement Quiz Taking View (`QuizTaker.vue`)
-  - [ ] Fetch quiz data based on route param `:id` (requires auth)
-  - [ ] Display quiz title, description
-  - [ ] Implement `Timer.vue` component and display if `time_limit_seconds > 0`
-  - [ ] Implement `QuestionDisplay.vue` component
-  - [ ] Render questions and choices using `QuestionDisplay.vue`
-  - [ ] Store selected answers in local state
-  - [ ] Handle submission: send answers to API, navigate to result page
-  - [ ] Handle time expiry (auto-submit or notify user)
-- [ ] Implement Quiz Result View (`QuizResult.vue`)
-  - [ ] Get score and correct answers from route params or store after submission
-  - [ ] Display score
-  - [ ] Display questions again, highlighting user's answers and correct answers
+- [x] Setup Vue Router for Responder section (`/login`, `/quiz/:id`, `/quiz/:id/result`)
+- [x] Update Pinia `authStore` to handle responder login state
+- [x] Update API client service with responder functions
+- [x] Implement Responder Login Page (`ResponderLogin.vue`)
+  - [x] Form for username/password, call login API, store temp token/session, redirect to quiz
+- [x] Implement Quiz Taking View (`QuizTaker.vue`)
+  - [x] Fetch quiz data based on route param `:id` (requires auth)
+  - [x] Display quiz title, description
+  - [x] Implement `Timer.vue` component and display if `time_limit_seconds > 0`
+  - [x] Render questions and choices directly in the component
+  - [x] Store selected answers in local state
+  - [x] Handle submission: send answers to API, navigate to result page
+  - [x] Handle time expiry (auto-submit or notify user)
+- [x] Implement Quiz Result View (`QuizResult.vue`)
+  - [x] Get score and correct answers from route params or store after submission
+  - [x] Display score
+  - [x] Display questions again, highlighting user's answers and correct answers
 
 ## Phase 6: Refinement & Deployment
 

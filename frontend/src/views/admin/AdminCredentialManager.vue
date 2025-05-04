@@ -45,6 +45,7 @@
             <th class="text-left w-16">Used</th>
             <th class="text-left">Used At</th>
             <th class="text-left">Created At</th>
+            <th class="text-center">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -58,6 +59,17 @@
             </td>
             <td>{{ cred.usedAt ? formatDateTime(cred.usedAt) : '-' }}</td>
             <td>{{ formatDateTime(cred.createdAt) }}</td>
+            <td class="text-center">
+              <button 
+                @click="removeCredential(cred.id)" 
+                class="btn btn-xs btn-error" 
+                :disabled="isDeleting === cred.id"
+                title="Delete credential"
+              >
+                <span v-if="isDeleting === cred.id" class="loading loading-spinner loading-xs"></span>
+                <span v-else>Delete</span>
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -69,7 +81,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue';
 import { useRoute } from 'vue-router';
-import { getAdminQuizCredentials, generateAdminQuizCredentials } from '@/services/api';
+import { getAdminQuizCredentials, generateAdminQuizCredentials, deleteCredential } from '@/services/api';
 import type { ResponderCredential, GenerateCredentialsResponse } from '@/types';
 
 const route = useRoute();
@@ -78,8 +90,10 @@ const credentials = ref<ResponderCredential[]>([]);
 const newlyGeneratedCredential = ref<GenerateCredentialsResponse | null>(null);
 const isLoading = ref(false);
 const isGenerating = ref(false);
+const isDeleting = ref<number | null>(null); // Holds ID of credential being deleted
 const fetchError = ref<string | null>(null);
 const generationError = ref<string | null>(null);
+const deleteError = ref<string | null>(null);
 
 const generateForm = reactive({
   username: '',
@@ -157,6 +171,27 @@ const copyGeneratedCredentials = () => {
       console.error('Failed to copy credentials: ', err);
       // Optional: show an error message to the user
     });
+};
+
+// Function to remove a credential
+const removeCredential = async (credentialId: number) => {
+  if (!confirm('Are you sure you want to delete this credential? This action cannot be undone.')) {
+    return; // User canceled the operation
+  }
+  
+  isDeleting.value = credentialId;
+  deleteError.value = null;
+  
+  try {
+    await deleteCredential(credentialId);
+    // Remove the credential from the local array to update UI
+    credentials.value = credentials.value.filter(cred => cred.id !== credentialId);
+  } catch (error: any) {
+    console.error('Error removing credential:', error);
+    deleteError.value = error.message || 'Failed to delete credential.';
+  } finally {
+    isDeleting.value = null;
+  }
 };
 
 onMounted(() => {

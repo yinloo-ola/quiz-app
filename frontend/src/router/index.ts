@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
 // Import views/components here (we'll create them later)
 // Example: import HomeView from '../views/HomeView.vue';
@@ -67,7 +68,27 @@ const routes: Array<RouteRecordRaw> = [
       // Add other admin child routes here
     ],
   },
-  // Add other top-level routes here (e.g., responder quiz view)
+  // Responder routes
+  {
+    path: '/login',
+    name: 'responder-login',
+    component: () => import('../views/responder/ResponderLogin.vue'),
+    meta: { requiresResponderGuest: true }, // Prevent logged-in responders from seeing login
+  },
+  {
+    path: '/quiz/:id',
+    name: 'quiz-taker',
+    component: () => import('../views/responder/QuizTaker.vue'),
+    props: true, // Pass route params as props
+    meta: { requiresResponderAuth: true }, // This route requires responder auth
+  },
+  {
+    path: '/quiz/:id/result',
+    name: 'quiz-result',
+    component: () => import('../views/responder/QuizResult.vue'),
+    props: true, // Pass route params as props
+    meta: { requiresResponderAuth: true }, // This route requires responder auth
+  },
 
   // Catch-all 404
   {
@@ -82,12 +103,48 @@ const router = createRouter({
   routes,
 });
 
-// --- Navigation Guards (Placeholder) ---
-// We will add guards later to check for authentication
+// --- Navigation Guards ---
 router.beforeEach((to, from, next) => {
-  // TODO: Implement auth checks based on meta fields (requiresAuth, requiresGuest)
-  // For now, allow all navigation
+  const authStore = useAuthStore();
+  
+  // Log navigation for debugging
   console.log(`Navigating from ${from.fullPath} to ${to.fullPath}`);
+  
+  // Admin auth check
+  if (to.meta.requiresAuth && !authStore.isAdminAuthenticated) {
+    console.log('Admin authentication required, redirecting to login');
+    next({ name: 'admin-login' });
+    return;
+  }
+  
+  // Admin guest check (prevent logged-in admins from seeing login)
+  if (to.meta.requiresGuest && authStore.isAdminAuthenticated) {
+    console.log('Already authenticated as admin, redirecting to dashboard');
+    next({ name: 'admin-dashboard' });
+    return;
+  }
+  
+  // Responder auth check
+  if (to.meta.requiresResponderAuth && !authStore.isResponderAuthenticated) {
+    console.log('Responder authentication required, redirecting to login');
+    next({ name: 'responder-login' });
+    return;
+  }
+  
+  // Responder guest check (prevent logged-in responders from seeing login)
+  if (to.meta.requiresResponderGuest && authStore.isResponderAuthenticated) {
+    console.log('Already authenticated as responder, redirecting to quiz');
+    const quizId = authStore.responderQuizId;
+    if (quizId) {
+      next({ name: 'quiz-taker', params: { id: quizId.toString() } });
+    } else {
+      // If for some reason we don't have the quiz ID, just go to home
+      next({ name: 'home' });
+    }
+    return;
+  }
+  
+  // Allow navigation
   next();
 });
 

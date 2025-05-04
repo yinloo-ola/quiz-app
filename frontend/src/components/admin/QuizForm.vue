@@ -34,7 +34,7 @@
       <input
         type="number"
         id="timeLimit"
-        v-model.number="timeLimitSeconds"
+        v-model.number="timeLimit"
         min="0"
         :disabled="isLoading"
         class="mt-1 block w-full px-3 py-2 border border-slate-700 rounded-md bg-slate-700 text-gray-100 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -206,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, defineProps, defineEmits } from 'vue';
+import { ref, watch } from 'vue';
 import type { QuestionInput, ChoiceInput, Quiz, QuizCreatePayload } from '@/types';
 
 // --- Props --- 
@@ -236,7 +236,7 @@ const emit = defineEmits<{
 
 const title = ref('');
 const description = ref('');
-const timeLimitSeconds = ref<number | null>(0);
+const timeLimit = ref<number | null>(0);
 const questions = ref<QuestionInput[]>([]); 
 
 // --- Validation Errors --- 
@@ -332,9 +332,9 @@ const handleSubmit = () => {
 
   if (validateQuiz()) {
     const quizData: QuizCreatePayload = {
-      title: title.value,
-      description: description.value || undefined,
-      time_limit_seconds: timeLimitSeconds.value === null || timeLimitSeconds.value <= 0 ? undefined : timeLimitSeconds.value,
+      title: title.value.trim(),
+      description: description.value.trim() || undefined,
+      timeLimit: timeLimit.value || 0,
       questions: questions.value.map((q: QuestionInput) => ({ 
         id: q.id, 
         text: q.text,
@@ -365,8 +365,8 @@ const validateQuiz = (): boolean => {
     isValid = false;
   }
 
-  const timeLimit = timeLimitSeconds.value;
-  if (timeLimit === null || timeLimit === undefined || typeof timeLimit !== 'number' || timeLimit < 0 || !Number.isInteger(timeLimit)) {
+  const timeLimitValue = timeLimit.value;
+  if (timeLimitValue === null || timeLimitValue === undefined || typeof timeLimitValue !== 'number' || timeLimitValue < 0 || !Number.isInteger(timeLimitValue)) {
       timeLimitError.value = 'Time limit must be a non-negative whole number (0 for no limit).';
       isValid = false;
   }
@@ -425,7 +425,8 @@ watch(() => props.initialQuizData, (newData: Quiz | null | undefined) => {
     console.log("QuizForm received initial data:", JSON.parse(JSON.stringify(newData)));
     title.value = newData.title || '';
     description.value = newData.description || '';
-    timeLimitSeconds.value = newData.time_limit_seconds === undefined || newData.time_limit_seconds === null ? 0 : newData.time_limit_seconds;
+    // Set the time limit
+    timeLimit.value = newData.timeLimit !== undefined ? newData.timeLimit : 0;
     questions.value = JSON.parse(JSON.stringify(newData.questions || [])).map((q: any) => ({
       ...q,
       choices: q.choices.map((c: any) => ({
@@ -440,7 +441,7 @@ watch(() => props.initialQuizData, (newData: Quiz | null | undefined) => {
   } else {
     title.value = '';
     description.value = '';
-    timeLimitSeconds.value = 0;
+    timeLimit.value = 0;
     questions.value = [];
     titleError.value = null;
     timeLimitError.value = null;

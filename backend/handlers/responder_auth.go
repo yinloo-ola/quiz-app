@@ -42,6 +42,8 @@ func ResponderLoginHandler(c *gin.Context) {
 	}
 
 	// 2. Find the responder credential by username
+	// Since we have a 1-to-1 relationship between quiz and credential,
+	// we can uniquely identify a credential by username alone
 	var credential models.ResponderCredential
 	query := tx.Where("username = ?", input.Username).First(&credential)
 
@@ -73,8 +75,8 @@ func ResponderLoginHandler(c *gin.Context) {
 		return
 	}
 
-	// 5. Check if the credential has expired (if expiry is set)
-	if credential.ExpiresAt != nil && credential.ExpiresAt.Before(time.Now()) {
+	// 5. Check if the credential has expired
+	if credential.ExpiresAt.Before(time.Now()) {
 		tx.Rollback()
 		c.JSON(http.StatusForbidden, gin.H{"error": "Credential has expired"})
 		return

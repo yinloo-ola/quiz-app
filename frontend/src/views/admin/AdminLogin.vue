@@ -65,7 +65,7 @@ const onSubmit = async () => {
         password: password.value 
     });
     
-    authStore.setToken(response.token);
+    authStore.setAdminToken(response.token);
     // Optional: Fetch user details if needed
     // authStore.setUser(someUserData); 
     

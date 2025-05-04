@@ -21,7 +21,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const authStore = useAuthStore();
-    const token = authStore.token;
+    const token = authStore.currentToken;
 
     // DEBUG: Log the request URL and the token being used
     console.log(`[API Interceptor] Request URL: ${config.url}, Token: ${token}`);
@@ -52,6 +52,34 @@ interface AdminLoginResponse {
   // Include other fields if your backend login returns more data
 }
 
+// Define the responder login credentials structure
+interface ResponderLoginCredentials {
+  username: string;
+  password: string;
+}
+
+// Define the responder login response structure
+interface ResponderLoginResponse {
+  token: string;
+}
+
+// Define the quiz submission input structure
+interface QuizSubmissionInput {
+  answers: {
+    question_id: number;
+    choice_ids: number[];
+  }[];
+  started_at?: string; // ISO string of when the quiz was started
+}
+
+// Define the quiz submission result structure
+interface QuizSubmissionResult {
+  score: number;
+  total_questions: number;
+  correct_answers: number;
+  correct_choices: Record<number, number[]>; // Map of question_id to array of correct choice_ids
+}
+
 /**
  * Sends admin login credentials to the backend.
  * @param credentials - The admin username and password.
@@ -65,6 +93,52 @@ export const adminLogin = async (credentials: AdminLoginCredentials): Promise<Ad
     console.error('Admin login failed:', error);
     // Re-throw the error so the calling component/store can handle it
     // You might want to parse the error response for specific messages
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Sends responder login credentials to the backend.
+ * @param credentials - The responder username and password.
+ * @returns Promise resolving with the login response (including token).
+ */
+export const responderLogin = async (credentials: ResponderLoginCredentials): Promise<ResponderLoginResponse> => {
+  try {
+    const response = await apiClient.post<ResponderLoginResponse>('/responder/login', credentials);
+    return response.data;
+  } catch (error: any) {
+    console.error('Responder login failed:', error);
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Fetches quiz details for a responder (without correct answer flags).
+ * @param quizId - The ID of the quiz to fetch.
+ * @returns Promise resolving with the quiz data.
+ */
+export const getResponderQuiz = async (quizId: number): Promise<Quiz> => {
+  try {
+    const response = await apiClient.get<Quiz>(`/quizzes/${quizId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error(`Failed to fetch responder quiz ${quizId}:`, error);
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Submits quiz answers for a responder.
+ * @param quizId - The ID of the quiz being submitted.
+ * @param answers - The answers to submit.
+ * @returns Promise resolving with the submission result.
+ */
+export const submitQuiz = async (quizId: number, answers: QuizSubmissionInput): Promise<QuizSubmissionResult> => {
+  try {
+    const response = await apiClient.post<QuizSubmissionResult>(`/quizzes/${quizId}/submit`, answers);
+    return response.data;
+  } catch (error: any) {
+    console.error(`Failed to submit quiz ${quizId}:`, error);
     throw error.response?.data || error;
   }
 };
@@ -237,6 +311,25 @@ export const getAdminResponseDetails = async (responseId: number): Promise<QuizR
       throw new Error(error.response.data.error || `Failed to fetch details for response ${responseId}`);
     } else {
       throw new Error('An unexpected error occurred while fetching response details.');
+    }
+  }
+};
+
+/**
+ * Delete/revoke a specific credential by its ID.
+ * @param credentialId The ID of the credential to delete.
+ * @returns Promise resolving when the credential is successfully deleted.
+ */
+export const deleteCredential = async (credentialId: number): Promise<void> => {
+  try {
+    await apiClient.delete(`/admin/credentials/${credentialId}`);
+    console.log(`[API] Credential ${credentialId} deleted successfully.`);
+  } catch (error) {
+    console.error(`Error deleting credential ${credentialId}:`, error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.error || `Failed to delete credential ${credentialId}`);
+    } else {
+      throw new Error('An unexpected error occurred while deleting the credential.');
     }
   }
 };

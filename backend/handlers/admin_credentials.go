@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,7 +22,7 @@ import (
 // GenerateCredentialsRequest defines the request body for generating credentials.
 // Count is removed as we always generate one.
 type GenerateCredentialsRequest struct {
-	Username    *string `json:"username"` // Optional username
+	Username    *string `json:"username"`     // Optional username
 	ExpiryHours *int    `json:"expiry_hours"` // Optional expiry duration in hours
 }
 
@@ -29,7 +30,7 @@ type GenerateCredentialsRequest struct {
 type GenerateCredentialsResponse struct {
 	Username     string    `json:"username"`
 	Password     string    `json:"password"`
-	ExpiresAt    *time.Time `json:"expires_at"`
+	ExpiresAt    time.Time `json:"expires_at"`
 	CredentialID uint      `json:"credential_id"`
 }
 
@@ -38,10 +39,10 @@ type GenerateCredentialsResponse struct {
 type CredentialView struct {
 	ID        uint       `json:"id"`
 	Username  string     `json:"username"`
-	ExpiresAt *time.Time `json:"expiresAt"` // Match frontend type
+	ExpiresAt time.Time  `json:"expiresAt"` // Updated to non-pointer to match model
 	CreatedAt time.Time  `json:"createdAt"` // Match frontend type
 	Used      bool       `json:"used"`
-	UsedAt    *time.Time `json:"usedAt"`    // Add UsedAt, match frontend type
+	UsedAt    *time.Time `json:"usedAt"` // Add UsedAt, match frontend type
 }
 
 // --- Utility ---
@@ -116,7 +117,11 @@ func GenerateCredentialsHandler(c *gin.Context) {
 		return
 	}
 
-	// 5. Generate Credentials
+	// 5. Check for existing credentials for this quiz (enforcing 1-to-1 relationship)
+	var existingCredential models.ResponderCredential
+	existingQuery := tx.Where("quiz_id = ?", quizID).First(&existingCredential)
+
+	// Generate new credential details
 	username := ""
 	if req.Username != nil && *req.Username != "" {
 		username = *req.Username
@@ -126,10 +131,11 @@ func GenerateCredentialsHandler(c *gin.Context) {
 	}
 
 	plainTextPassword := generateRandomString(12) // Plain-text password
-	var expiresAt *time.Time                     // Use pointer for optional expiry
+
+	// Set an expiration date, using a default of 24 hours if none is provided
+	expiry := time.Now().Add(24 * time.Hour) // Default: 24 hours from now
 	if req.ExpiryHours != nil && *req.ExpiryHours > 0 {
-		expiry := time.Now().Add(time.Duration(*req.ExpiryHours) * time.Hour)
-		expiresAt = &expiry
+		expiry = time.Now().Add(time.Duration(*req.ExpiryHours) * time.Hour)
 	}
 
 	// Hash the password
@@ -141,17 +147,52 @@ func GenerateCredentialsHandler(c *gin.Context) {
 		return
 	}
 
-	// 6. Create ResponderCredential record
-	newCredential := models.ResponderCredential{
-		QuizID:       quizID,
-		Username:     username,
-		PasswordHash: hashedPassword, // Store the hash
-		ExpiresAt:    expiresAt,    // Store optional expiry time (pointer)
-	}
-	if err := tx.Create(&newCredential).Error; err != nil {
+	var newCredential models.ResponderCredential
+
+	// 6. Create or update ResponderCredential record
+	if existingQuery.Error == nil {
+		// Credential exists for this quiz - update it
+		existingCredential.Username = username
+		existingCredential.PasswordHash = hashedPassword
+		existingCredential.ExpiresAt = expiry
+		existingCredential.Used = false // Reset usage status
+		existingCredential.UsedAt = nil // Clear usage timestamp
+
+		if err := tx.Save(&existingCredential).Error; err != nil {
+			tx.Rollback()
+			log.Printf("Error updating credential for quiz %d: %v", quizID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update credential"})
+			return
+		}
+		newCredential = existingCredential
+	} else if existingQuery.Error == gorm.ErrRecordNotFound {
+		// No credential exists - create new one
+		newCredential = models.ResponderCredential{
+			QuizID:       quizID,
+			Username:     username,
+			PasswordHash: hashedPassword, // Store the hash
+			ExpiresAt:    expiry,         // Store expiry time
+		}
+		if err := tx.Create(&newCredential).Error; err != nil {
+			tx.Rollback()
+			log.Printf("Error creating credential for quiz %d: %v", quizID, err)
+			
+			// Check if this is a uniqueness constraint error
+			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				if strings.Contains(err.Error(), "username") {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Username already exists. Please choose a different username."})
+					return
+				}
+			}
+			
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save credential"})
+			return
+		}
+	} else {
+		// Some other database error
 		tx.Rollback()
-		log.Printf("Error creating credential for quiz %d: %v", quizID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save credential"})
+		log.Printf("Error checking for existing credentials for quiz %d: %v", quizID, existingQuery.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error checking existing credentials"})
 		return
 	}
 
@@ -165,7 +206,7 @@ func GenerateCredentialsHandler(c *gin.Context) {
 	resp := GenerateCredentialsResponse{
 		Username:     username,
 		Password:     plainTextPassword, // Send plain text back to admin
-		ExpiresAt:    expiresAt,         // Send back the calculated expiry time (can be nil)
+		ExpiresAt:    expiry,            // Send back the calculated expiry time
 		CredentialID: newCredential.ID,
 	}
 
@@ -242,7 +283,7 @@ func ViewCredentialsHandler(c *gin.Context) {
 			ExpiresAt: cred.ExpiresAt, // Already a pointer
 			CreatedAt: cred.CreatedAt,
 			Used:      cred.Used,
-			UsedAt:    cred.UsedAt,    // Add UsedAt
+			UsedAt:    cred.UsedAt, // Add UsedAt
 		}
 	}
 
@@ -300,8 +341,9 @@ func RevokeCredentialHandler(c *gin.Context) {
 		return
 	}
 
-	// 4. Delete (Soft Delete) the Credential
-	if err := tx.Delete(&credential).Error; err != nil {
+	// 4. Hard Delete the Credential (instead of soft delete)
+	// Use Unscoped() to bypass GORM's soft delete and perform a real DELETE
+	if err := tx.Unscoped().Delete(&credential).Error; err != nil {
 		tx.Rollback()
 		log.Printf("Error deleting credential %d: %v", credentialID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete credential"})

@@ -61,9 +61,22 @@ func main() {
 
 	// --- Public Routes ---
 	router.POST("/admin/login", handlers.AdminLoginHandler)
-	router.POST("/responder/login", handlers.ResponderLoginHandler) // New responder login route
+	router.POST("/responder/login", handlers.ResponderLoginHandler) // Responder login route
 
-	// Authentication Routes
+	// --- Responder Routes (Protected by Responder Auth) ---
+	responderRoutes := router.Group("/quizzes")
+	{
+		// Apply Responder Auth Middleware to subsequent responder routes
+		responderRoutes.Use(middleware.ResponderAuthMiddleware())
+		
+		// Get quiz details for responder (without correct answers)
+		responderRoutes.GET("/:quiz_id", handlers.GetQuizForResponderHandler)
+		
+		// Submit quiz answers
+		responderRoutes.POST("/:quiz_id/submit", handlers.SubmitQuizHandler)
+	}
+
+	// --- Admin Routes (Protected by Admin Auth) ---
 	adminRoutes := router.Group("/admin")
 	{
 		// Apply Auth Middleware to subsequent admin routes
@@ -107,10 +120,10 @@ func main() {
 		// Other admin routes will go here, potentially under auth middleware
 	}
 
-	// Get port from environment variable, default to 8081
+	// Get port from environment variable, default to 8082
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8081"
+		port = "8082"
 	}
 
 	log.Printf("Server starting on port %s", port)
